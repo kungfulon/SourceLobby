@@ -177,6 +177,8 @@ bool InitializeHooks()
 
 void ShutdownHooks()
 {
+    auto engineModule = Sys_LoadModule("engine" DLL_EXT_STRING);
+    HookIAT(engineModule, "wsock32.dll", SENDTO_ORDINAL, sendto);
     g_pVCR->Hook_recvfrom = _recvfrom;
     detour->Shutdown();
 }
