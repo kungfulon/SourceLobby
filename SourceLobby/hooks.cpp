@@ -1,23 +1,19 @@
 #include "hooks.h"
-#include "detour.h"
 
 #include <tier1/tier1.h>
 #include <tier1/netadr.h>
 
-#include <winsock.h>
+#include <winsock2.h>
 
+#include "detour.h"
 #include "SourceLobby.h"
 
 // memdbgon must be the last include file in a .cpp file!!!
 #include "tier0/memdbgon.h"
 
-static constexpr u_short P2P_PORT = 1;
+static constexpr uint16 P2P_PORT = 1;
 
-static constexpr const uint8 NET_SendToImplPattern[] =
-{ 0x55, 0x8B, 0xEC, 0xFF, 0x75, 0xCC, 0xFF, 0x75, 0xCC, 0x6A, 0x00, 0xFF, 0x75, 0xCC, 0xFF, 0x75, 0xCC, 0xFF, 0x75, 0xCC, 0xE8, 0xCC, 0xCC, 0xCC, 0xCC, 0x5D, 0xC3 };
-
-static constexpr const uint8 NET_SendToPattern[] =
-{ 0x55, 0x8B, 0xEC, 0x83, 0xEC, 0x10, 0x53, 0x56, 0x8B, 0x35, 0xCC, 0xCC, 0xCC, 0xCC, 0x33, 0xDB, 0x57, 0x33, 0xFF, 0x89, 0x5D, 0xCC, 0x89, 0x7D, 0xCC, 0x8B, 0x46, 0xCC, 0xC7 };
+static constexpr uint16 SENDTO_ORDINAL = 20;
 
 static constexpr const uint8 NET_StringToAdrPattern[] =
 { 0x55, 0x8B, 0xEC, 0x81, 0xEC, 0x90, 0x00, 0x00, 0x00, 0x8D, 0x85, 0xCC, 0xCC, 0xCC, 0xCC, 0x68, 0x80, 0x00, 0x00, 0x00, 0xFF, 0x75, 0xCC, 0x50, 0xE8, 0xCC, 0xCC, 0xCC, 0xCC, 0x6A, 0x0A, 0x8D, 0x85 };
@@ -55,14 +51,11 @@ int RecvFrom(int s, char* buf, int len, int flags, struct sockaddr* from, int* f
     return msgLen;
 }
 
-typedef int (*tNET_SendToImpl)(SOCKET s, const char* buf, int len, const struct sockaddr* to, int tolen, int iGameDataLength);
-static tNET_SendToImpl _NET_SendToImpl;
-
-int NET_SendToImpl(SOCKET s, const char* buf, int len, const struct sockaddr* to, int tolen, int iGameDataLength)
+int WSAAPI SendTo(SOCKET s, const char* buf, int len, int flags, const struct sockaddr* to, int tolen)
 {
     auto* addr = (const sockaddr_in*)to;
     if (addr->sin_port != htons(P2P_PORT))
-        return _NET_SendToImpl(s, buf, len, to, tolen, iGameDataLength);
+        return sendto(s, buf, len, flags, to, tolen);
 
     // Only support individual for now.
     CSteamID remote;
@@ -79,14 +72,6 @@ int NET_SendToImpl(SOCKET s, const char* buf, int len, const struct sockaddr* to
 
     WSASetLastError(0);
     return len;
-}
-
-typedef int (* tNET_SendTo)(bool verbose, SOCKET s, const char* buf, int len, const struct sockaddr* to, int tolen, int iGameDataLength);
-static tNET_SendTo _NET_SendTo;
-
-int NET_SendTo(bool verbose, SOCKET s, const char* buf, int len, const struct sockaddr* to, int tolen, int iGameDataLength)
-{
-    return NET_SendToImpl(s, buf, len, to, tolen, iGameDataLength);
 }
 
 typedef bool (*tNET_StringToAdr)(const char* s, netadr_t* a);
@@ -171,20 +156,8 @@ bool InitializeHooks()
 
     auto engineModule = Sys_LoadModule("engine" DLL_EXT_STRING);
 
-    auto NET_SendToImplAddr = ScanPattern(engineModule, NET_SendToImplPattern, sizeof(NET_SendToImplPattern));
-    if (NET_SendToImplAddr != nullptr)
-    {
-        _NET_SendToImpl = (tNET_SendToImpl)detour->CreateHook(NET_SendToImplAddr, NET_SendToImpl);
-        detour->EnableHook(_NET_SendToImpl);
-    }
+    HookIAT(engineModule, "wsock32.dll", SENDTO_ORDINAL, SendTo);
 
-    auto NET_SendToAddr = ScanPattern(engineModule, NET_SendToPattern, sizeof(NET_SendToPattern));
-    if (NET_SendToAddr != nullptr)
-    {
-        _NET_SendTo = (tNET_SendTo)detour->CreateHook(NET_SendToAddr, NET_SendTo);
-        detour->EnableHook(_NET_SendTo);
-    }
-    
     auto NET_StringToAdrAddr = ScanPattern(engineModule, NET_StringToAdrPattern, sizeof(NET_StringToAdrPattern));
     if (NET_StringToAdrAddr != nullptr)
     {

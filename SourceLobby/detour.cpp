@@ -1,8 +1,8 @@
-#include "detour.h"
-
 #include <tier1/tier1.h>
 #include <tier1/utlhashtable.h>
 #include <capstone/capstone.h>
+
+#include "detour.h"
 
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
@@ -144,4 +144,36 @@ void Detour::DestroyHook(void* hook)
 {
     DisableHook(hook);
     hooks.Remove(hook);
+}
+
+bool HookIAT(CSysModule* module, const char* importModule, uint16 ordinal, void* hookFunc)
+{
+    auto dosHeader = (PIMAGE_DOS_HEADER)module;
+    auto ntHeaders = (PIMAGE_NT_HEADERS)((uint8*)module + dosHeader->e_lfanew);
+    auto importDirectory = ntHeaders->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT];
+
+    if (importDirectory.Size == 0)
+        return false;
+
+    for (auto importDescriptor = (PIMAGE_IMPORT_DESCRIPTOR)((uint8*)module + importDirectory.VirtualAddress);
+        importDescriptor->OriginalFirstThunk != NULL;
+        ++importDescriptor)
+    {
+        const char* moduleName = (const char*)((uint8*)module + importDescriptor->Name);
+        if (V_stricmp(importModule, moduleName))
+            continue;
+
+        auto ilt = (PIMAGE_THUNK_DATA)((uint8*)module + importDescriptor->OriginalFirstThunk);
+        auto iat = (PIMAGE_THUNK_DATA)((uint8*)module + importDescriptor->FirstThunk);
+        for (; ilt->u1.AddressOfData != NULL; ++ilt, ++iat)
+        {
+            if ((ilt->u1.Ordinal & IMAGE_ORDINAL_FLAG) && IMAGE_ORDINAL(ilt->u1.Ordinal) == ordinal)
+            {
+                memcpyRWX(&iat->u1.Function, &hookFunc, sizeof(iat->u1.Function));
+                return true;
+            }
+        }
+    }
+
+    return false;
 }

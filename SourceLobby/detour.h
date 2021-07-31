@@ -15,4 +15,6 @@ public:
 
 extern IDetour *detour;
 
+bool HookIAT(CSysModule* module, const char* importModule, uint16 ordinal, void* hookFunc);
+
 #endif // DETOUR_H

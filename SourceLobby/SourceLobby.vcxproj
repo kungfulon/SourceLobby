@@ -102,7 +102,7 @@
     </PreLinkEvent>
     <Link>
       <AdditionalOptions> /ignore:4221</AdditionalOptions>
-      <AdditionalDependencies>tier0.lib;tier1.lib;vstdlib.lib;steam_api.lib;legacy_stdio_definitions.lib;capstone.lib;wsock32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>tier0.lib;tier1.lib;vstdlib.lib;steam_api.lib;legacy_stdio_definitions.lib;capstone.lib;ws2_32.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <ShowProgress>NotSet</ShowProgress>
       <OutputFile>$(OutDir)\SourceLobby.dll</OutputFile>
       <SuppressStartupBanner>true</SuppressStartupBanner>
@@ -175,7 +175,7 @@
     </PreLinkEvent>
     <Link>
       <AdditionalOptions> /ignore:4221</AdditionalOptions>
-      <AdditionalDependencies>tier0.lib;tier1.lib;vstdlib.lib;steam_api.lib;legacy_stdio_definitions.lib;capstone.lib;wsock32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>tier0.lib;tier1.lib;vstdlib.lib;steam_api.lib;legacy_stdio_definitions.lib;capstone.lib;ws2_32.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <ShowProgress>NotSet</ShowProgress>
       <OutputFile>$(OutDir)\SourceLobby.dll</OutputFile>
       <SuppressStartupBanner>true</SuppressStartupBanner>
